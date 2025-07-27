@@ -6,7 +6,7 @@ import { getStorage, ref, uploadBytes, getDownloadURL, deleteObject } from 'fire
 import {
   UploadCloud, XCircle, ChevronDown, ChevronUp, Star, Filter, Edit, Save, Trash2, Plus, Search, Image as ImageIcon,
   Palette, Swords, Feather, ScrollText, LandPlot, Shield, Zap, RefreshCcw, Eye, Heart, List, Hash, Type, Skull, BookOpenText,
-  EyeOff, RefreshCcw as FlipIcon, ArrowRight, Ghost // ArrowRightとGhostアイコンを追加
+  EyeOff, RefreshCcw as FlipIcon, ArrowRight, Ghost, MessageSquare // MessageSquare アイコンを追加
 } from 'lucide-react'; // アイコンライブラリ
 
 // Firebaseの設定は環境変数から取得
@@ -78,25 +78,7 @@ const LoadingSpinner = () => (
   </div>
 );
 
-// メッセージボックスコンポーネント
-const MessageBox = ({ message, type, onClose }) => {
-  const bgColor = type === 'error' ? 'bg-red-500' : 'bg-green-500';
-  const title = type === 'error' ? 'エラー' : '成功';
-
-  return (
-    <div className={`fixed bottom-4 right-4 ${bgColor} text-white p-4 rounded-lg shadow-lg z-50 flex items-center justify-between animate-fade-in-up`}>
-      <div>
-        <h3 className="font-bold">{title}</h3>
-        <p>{message}</p>
-      </div>
-      <button onClick={onClose} className="ml-4 text-white hover:text-gray-200">
-        <XCircle size={20} />
-      </button>
-    </div>
-  );
-};
-
-// カードアイテムコンポーネント
+// カードアイテムコンポーネント (UPDATED: コメント表示機能追加)
 const CardItem = ({ card, onEdit, onToggleBomb, onRatingChange, onManaCostChange, onToggleCustomAttribute, customAttributes, isStealthMode }) => {
   const IconComponent = card.isBomb ? Star : Star; // ボムレアのアイコンは常にStar
   const iconColorClass = card.isBomb ? 'text-yellow-400' : 'text-gray-400';
@@ -116,6 +98,8 @@ const CardItem = ({ card, onEdit, onToggleBomb, onRatingChange, onManaCostChange
   const displayedImageUrl = isFlipped && card.isDoubleFaced && card.backFaceImageUrl
     ? card.backFaceImageUrl
     : card.imageUrl;
+
+  const hasComment = card.comment && card.comment.trim() !== '';
 
   return (
     <div className="relative bg-white rounded-lg shadow-md hover:shadow-lg transition-shadow duration-200 overflow-hidden flex flex-col group">
@@ -137,8 +121,23 @@ const CardItem = ({ card, onEdit, onToggleBomb, onRatingChange, onManaCostChange
             <ImageIcon size={48} className="text-gray-400" />
           </div>
         )}
-        {/* カスタム属性オーバーレイ (左下) */}
+
+        {/* コメントホバー時のオーバーレイ */}
+        {hasComment && (
+          <div className="absolute inset-0 bg-black bg-opacity-70 text-white p-2 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity duration-300 pointer-events-none">
+            <p className="text-sm text-center whitespace-pre-wrap">{card.comment}</p>
+          </div>
+        )}
+
+        {/* アイコンオーバーレイ (左下) */}
         <div className="absolute bottom-2 left-2 flex flex-wrap gap-1">
+          {/* コメントアイコン */}
+          {hasComment && (
+            <span className="bg-purple-600 bg-opacity-85 text-white text-xs px-2 py-1 rounded-full flex items-center gap-1" title="コメントあり">
+              <MessageSquare size={12} />
+            </span>
+          )}
+          {/* カスタム属性アイコン */}
           {card.customAttributeIds && card.customAttributeIds.map(attrId => {
             const attr = customAttributes.find(ca => ca.id === attrId);
             if (!attr) return null;
@@ -165,14 +164,6 @@ const CardItem = ({ card, onEdit, onToggleBomb, onRatingChange, onManaCostChange
 
       {/* カード情報と評価 */}
       <div className="p-4 flex flex-col flex-grow">
-        {/* カード名、色、レアリティ、タイプは常に非表示 */}
-        {/* <h3 className="text-lg font-semibold text-gray-800 truncate mb-1" title={card.name || 'カード名未設定'}>
-          {card.name || 'カード名未設定'}
-        </h3>
-        <p className="text-sm text-gray-600 mb-2">
-          {card.color} | {card.rarity} | {card.type}
-        </p> */}
-
         {!isStealthMode && (
           <>
             <div className="flex items-center mt-auto mb-2">
@@ -188,16 +179,14 @@ const CardItem = ({ card, onEdit, onToggleBomb, onRatingChange, onManaCostChange
                 className="w-20 p-2 border border-gray-300 rounded-md focus:ring-blue-500 focus:border-blue-500 text-center text-gray-800"
                 placeholder="0.0-5.0"
               />
-              {/* ボムレアアイコンを評価インプットのすぐ右隣に配置 */}
               <button
-                onClick={(e) => { e.stopPropagation(); onToggleBomb(card.id); }} // クリックイベントの伝播を停止
+                onClick={(e) => { e.stopPropagation(); onToggleBomb(card.id); }}
                 className={`ml-2 p-1 rounded-full bg-black bg-opacity-50 hover:bg-opacity-75 transition-colors duration-200 ${iconColorClass}`}
                 aria-label={card.isBomb ? "ボムレア解除" : "ボムレアに設定"}
               >
                 <IconComponent size={20} fill={card.isBomb ? 'currentColor' : 'none'} />
               </button>
             </div>
-            {/* マナコスト入力欄 */}
             <div className="flex items-center mb-2">
               <label htmlFor={`mana-cost-${card.id}`} className="text-gray-700 mr-2">
                 コスト:
@@ -214,8 +203,6 @@ const CardItem = ({ card, onEdit, onToggleBomb, onRatingChange, onManaCostChange
             </div>
           </>
         )}
-
-        {/* カスタム属性トグルを評価の下に表示 */}
         {!isStealthMode && customAttributes.length > 0 && (
           <div className="flex flex-wrap gap-1 mt-2 border-t pt-2 border-gray-100">
             {customAttributes.map(attr => {
@@ -262,9 +249,6 @@ function App() {
   const [isSetManagementModalOpen, setIsSetManagementModalOpen] = useState(false);
   const [isStealthMode, setIsStealthMode] = useState(false);
 
-  const [message, setMessage] = useState(null);
-  const [messageType, setMessageType] = useState('success');
-
   // フィルターステート
   const [filters, setFilters] = useState({
     colors: [],
@@ -276,26 +260,14 @@ function App() {
   });
 
   // ソートステート
-  const [sortBy, setSortBy] = useState('rating-desc'); // 'rating-desc', 'rating-asc', 'name-asc', 'name-desc', 'manaCost-asc', 'manaCost-desc'
+  const [sortBy, setSortBy] = useState('default');
   const [displayMode, setDisplayMode] = useState('grid'); // 'grid', 'tier'
-
-  // メッセージ表示関数
-  const showMessage = useCallback((msg, type = 'success') => {
-    setMessage(msg);
-    setMessageType(type);
-    const timer = setTimeout(() => {
-      setMessage(null);
-    }, 3000);
-    return () => clearTimeout(timer);
-  }, []);
 
   // Firebase初期化
   useEffect(() => {
     const initializeFirebaseServices = async () => {
-      // FIREBASE_CONFIG が空の場合は初期化しない（エラー防止）
       if (Object.keys(FIREBASE_CONFIG).length === 0) {
         console.error("Firebase configuration is empty. Check your .env file or __firebase_config.");
-        showMessage("Firebaseの設定情報が見つかりません。開発者ツールを確認してください。", "error");
         setLoading(false);
         return;
       }
@@ -308,183 +280,152 @@ function App() {
         setFirebaseStorage(getStorage(appInstance));
 
         const authInstance = getAuth(appInstance);
-        // 認証状態の監視
         const unsubscribe = onAuthStateChanged(authInstance, async (user) => {
           if (user) {
             setUserId(user.uid);
-            console.log("Firebase authenticated. User ID:", user.uid);
           } else {
-            // 匿名認証
             try {
               const anonymousUser = await signInAnonymously(authInstance);
               setUserId(anonymousUser.user.uid);
-              console.log("Signed in anonymously. User ID:", anonymousUser.user.uid);
             } catch (anonError) {
               console.error("Error signing in anonymously:", anonError);
-              showMessage("匿名認証に失敗しました。", "error");
             }
           }
           setLoading(false);
         });
 
-        // カスタムトークンがあればサインイン
         if (INITIAL_AUTH_TOKEN) {
           try {
             await signInWithCustomToken(authInstance, INITIAL_AUTH_TOKEN);
-            console.log("Signed in with custom token.");
           } catch (error) {
             console.error("Error signing in with custom token:", error);
-            showMessage("カスタムトークンでの認証に失敗しました。", "error");
-            // カスタムトークンで失敗した場合、匿名認証を試みる
             try {
               await signInAnonymously(authInstance);
             } catch (anonError) {
               console.error("Error signing in anonymously after custom token failure:", anonError);
-              showMessage("匿名認証も失敗しました。", "error");
             }
           }
         } else {
-          // カスタムトークンがない場合、匿名認証
           try {
             await signInAnonymously(authInstance);
           } catch (anonError) {
             console.error("Error signing in anonymously:", anonError);
-            showMessage("匿名認証に失敗しました。", "error");
           }
         }
 
         return () => unsubscribe();
       } catch (error) {
         console.error("Firebase initialization failed:", error);
-        showMessage("Firebaseの初期化に失敗しました。設定を確認してください。", "error");
         setLoading(false);
       }
     };
 
     initializeFirebaseServices();
-  }, [showMessage]); // INITIAL_AUTH_TOKENを依存配列に追加しない (useEffect外の定数なので)
+  }, []);
 
   // Firestoreからのデータ取得 (カード、カスタム属性、セット)
   useEffect(() => {
-    // firestoreDb と userId が利用可能になってからリスナーを設定
     if (!firestoreDb || !userId) return;
 
-    // カードデータのリアルタイムリスナー
     const cardsCollectionRef = collection(firestoreDb, `artifacts/${APP_ID}/users/${userId}/cards`);
     const unsubscribeCards = onSnapshot(cardsCollectionRef, (snapshot) => {
       const fetchedCards = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
       setCards(fetchedCards);
-      console.log("Cards fetched:", fetchedCards.length);
     }, (error) => {
       console.error("Error fetching cards:", error);
-      showMessage("カードデータの取得に失敗しました。", "error");
     });
 
-    // カスタム属性のリアルタイムリスナー
     const customAttrsCollectionRef = collection(firestoreDb, `artifacts/${APP_ID}/users/${userId}/customAttributes`);
     const unsubscribeCustomAttrs = onSnapshot(customAttrsCollectionRef, (snapshot) => {
       const fetchedAttrs = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
       setCustomAttributes(fetchedAttrs);
-      console.log("Custom attributes fetched:", fetchedAttrs.length);
     }, (error) => {
       console.error("Error fetching custom attributes:", error);
-      showMessage("カスタム属性の取得に失敗しました。", "error");
     });
 
-    // セットデータのリアルタイムリスナー
     const setsCollectionRef = collection(firestoreDb, `artifacts/${APP_ID}/users/${userId}/sets`);
     const unsubscribeSets = onSnapshot(setsCollectionRef, (snapshot) => {
       const fetchedSets = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
       setSets(fetchedSets);
-      // セットがロードされたら、まだ何も選択されていなければ最初のセットを選択する
-      // または、現在選択中のセットが削除された場合も最初のセットを選択する
       if (fetchedSets.length > 0 && (!currentSetId || !fetchedSets.some(s => s.id === currentSetId))) {
         setCurrentSetId(fetchedSets[0].id);
       } else if (fetchedSets.length === 0) {
-        setCurrentSetId(null); // セットがない場合は選択を解除
+        setCurrentSetId(null);
       }
-      console.log("Sets fetched:", fetchedSets.length);
     }, (error) => {
       console.error("Error fetching sets:", error);
-      showMessage("セットデータの取得に失敗しました。", "error");
     });
 
     return () => {
       unsubscribeCards();
       unsubscribeCustomAttrs();
-      unsubscribeSets(); // セットのリスナーもクリーンアップ
+      unsubscribeSets();
     };
-  }, [firestoreDb, userId, currentSetId, showMessage]); // firestoreDbを依存配列に追加
+  }, [firestoreDb, userId, currentSetId]);
 
   // カードアップロード処理
-  const handleUploadCards = async (files, colors, setId, isDoubleFaced, backFaceFile) => { // colorsを配列で受け取る
+  const handleUploadCards = async (files, colors, setId, isDoubleFaced, backFaceFile) => {
     if (!userId || !firebaseStorage || !firestoreDb) {
-      showMessage("Firebaseサービスが利用できません。認証または初期化を確認してください。", "error");
+      console.error("Firebaseサービスが利用できません。");
       return;
     }
-    if (!setId) { // セットが選択されていない場合はエラー
-      showMessage("カードをアップロードするセットを選択してください。", "error");
-      setIsUploadModalOpen(true); // モーダルを再度開いて選択を促す
+    if (!setId) {
+      console.error("カードをアップロードするセットを選択してください。");
+      setIsUploadModalOpen(true);
       return;
     }
     if (isDoubleFaced && files.length !== 1) {
-      showMessage("裏表のあるカードをアップロードする場合、表面の画像は1枚のみ選択してください。", "error");
+      console.error("裏表のあるカードをアップロードする場合、表面の画像は1枚のみ選択してください。");
       return;
     }
     if (isDoubleFaced && !backFaceFile) {
-      showMessage("裏表のあるカードの場合、裏面画像も選択してください。", "error");
+      console.error("裏表のあるカードの場合、裏面画像も選択してください。");
       return;
     }
     if (colors.length === 0) {
-      showMessage("カードの色を1つ以上選択してください。", "error");
+      console.error("カードの色を1つ以上選択してください。");
       return;
     }
 
-
     setLoading(true);
-    const uploadedCardData = [];
-    for (const file of files) { // DFCの場合はfiles[0]のみ処理される
+    for (const file of files) {
       try {
-        // 表面の画像アップロード
         const storageRef = ref(firebaseStorage, `card_images/${userId}/${file.name}`);
         await uploadBytes(storageRef, file);
         const imageUrl = await getDownloadURL(storageRef);
 
         let backFaceImageUrl = null;
         if (isDoubleFaced && backFaceFile) {
-          // 裏面画像のアップロード
-          const backStorageRef = ref(firebaseStorage, `card_images/${userId}/back_${backFaceFile.name}`); // 裏面用のユニークな名前
+          const backStorageRef = ref(firebaseStorage, `card_images/${userId}/back_${backFaceFile.name}`);
           await uploadBytes(backStorageRef, backFaceFile);
           backFaceImageUrl = await getDownloadURL(backStorageRef);
         }
 
         const newCard = {
-          name: file.name.split('.')[0], // ファイル名をカード名とする
-          color: colors, // 色を配列で保存
-          rarity: '', // 初期値は空
-          type: '', // 初期値は空
+          name: file.name.split('.')[0],
+          color: colors,
+          rarity: '',
+          type: '',
           rating: 0.0,
-          manaCost: null, // マナコストの初期値
+          manaCost: null,
           isBomb: false,
-          isDoubleFaced: isDoubleFaced, // DFCフラグ
-          backFaceImageUrl: backFaceImageUrl, // 裏面画像URL
+          isDoubleFaced: isDoubleFaced,
+          backFaceImageUrl: backFaceImageUrl,
           customAttributeIds: [],
           imageUrl: imageUrl,
           comment: '',
-          setId: setId, // セットIDを保存
+          setId: setId,
           createdAt: new Date(),
           updatedAt: new Date(),
         };
-        const docRef = await addDoc(collection(firestoreDb, `artifacts/${APP_ID}/users/${userId}/cards`), newCard);
-        uploadedCardData.push({ id: docRef.id, ...newCard });
+        await addDoc(collection(firestoreDb, `artifacts/${APP_ID}/users/${userId}/cards`), newCard);
       } catch (error) {
         console.error("Error uploading card:", file.name, error);
-        showMessage(`カード ${file.name} のアップロードに失敗しました。`, "error");
       }
     }
     setLoading(false);
     setIsUploadModalOpen(false);
-    showMessage("カードをアップロードしました！");
+    console.log("カードをアップロードしました！");
   };
 
   // カード情報更新処理
@@ -493,23 +434,19 @@ function App() {
     try {
       const cardRef = doc(firestoreDb, `artifacts/${APP_ID}/users/${userId}/cards`, cardId);
       await updateDoc(cardRef, { ...updatedFields, updatedAt: new Date() });
-      showMessage("カード情報を更新しました。", "success");
     } catch (error) {
       console.error("Error updating card:", error);
-      showMessage("カード情報の更新に失敗しました。", "error");
     }
   };
 
   // カード削除処理
-  const handleDeleteCard = async (cardId, imageUrl, backFaceImageUrl) => { // backFaceImageUrlを追加
+  const handleDeleteCard = async (cardId, imageUrl, backFaceImageUrl) => {
     if (!userId || !firestoreDb || !firebaseStorage) return;
-    // 確認ダイアログの代替
     const userConfirmed = window.confirm('本当にこのカードを削除しますか？');
     if (!userConfirmed) return;
 
     setLoading(true);
     try {
-      // 表面の画像をStorageから削除
       if (imageUrl) {
         const url = new URL(imageUrl);
         const path = decodeURIComponent(url.pathname);
@@ -519,7 +456,6 @@ function App() {
         const storageRef = ref(firebaseStorage, imagePath);
         await deleteObject(storageRef);
       }
-      // 裏面の画像をStorageから削除 (もしあれば)
       if (backFaceImageUrl) {
         const url = new URL(backFaceImageUrl);
         const path = decodeURIComponent(url.pathname);
@@ -529,13 +465,9 @@ function App() {
         const storageRef = ref(firebaseStorage, imagePath);
         await deleteObject(storageRef);
       }
-
-      // Firestoreからドキュメントを削除
       await deleteDoc(doc(firestoreDb, `artifacts/${APP_ID}/users/${userId}/cards`, cardId));
-      showMessage("カードを削除しました。", "success");
     } catch (error) {
-            console.error("Error deleting card:", error);
-            showMessage("カードの削除に失敗しました。", "error");
+      console.error("Error deleting card:", error);
     } finally {
       setLoading(false);
     }
@@ -551,7 +483,6 @@ function App() {
 
   // 評価変更
   const handleRatingChange = (cardId, newRating) => {
-    // 0.0から5.0の範囲に制限し、小数点第一位までにする
     const clampedRating = Math.max(0.0, Math.min(5.0, newRating));
     const roundedRating = Math.round(clampedRating * 10) / 10;
     handleUpdateCard(cardId, { rating: roundedRating });
@@ -559,9 +490,8 @@ function App() {
 
   // マナコスト変更
   const handleManaCostChange = (cardId, newManaCost) => {
-    // 0以上の整数に制限
     const parsedCost = parseInt(newManaCost);
-    const validatedCost = isNaN(parsedCost) || parsedCost < 0 ? null : parsedCost; // 無効な場合はnull
+    const validatedCost = isNaN(parsedCost) || parsedCost < 0 ? null : parsedCost;
     handleUpdateCard(cardId, { manaCost: validatedCost });
   };
 
@@ -570,10 +500,8 @@ function App() {
     if (!userId || !name.trim() || !firestoreDb) return;
     try {
       await addDoc(collection(firestoreDb, `artifacts/${APP_ID}/users/${userId}/customAttributes`), { name: name.trim() });
-      showMessage("カスタム属性を追加しました。", "success");
     } catch (error) {
       console.error("Error adding custom attribute:", error);
-      showMessage("カスタム属性の追加に失敗しました。", "error");
     }
   };
 
@@ -583,7 +511,6 @@ function App() {
     const userConfirmed = window.confirm('このカスタム属性を削除しますか？この属性が割り当てられているカードからも削除されます。');
     if (!userConfirmed) return;
     try {
-      // 属性が割り当てられているカードから削除
       const cardsToUpdate = cards.filter(card => card.customAttributeIds && card.customAttributeIds.includes(attrId));
       for (const card of cardsToUpdate) {
         await updateDoc(doc(firestoreDb, `artifacts/${APP_ID}/users/${userId}/cards`, card.id), {
@@ -591,10 +518,8 @@ function App() {
         });
       }
       await deleteDoc(doc(firestoreDb, `artifacts/${APP_ID}/users/${userId}/customAttributes`, attrId));
-      showMessage("カスタム属性を削除しました。", "success");
     } catch (error) {
       console.error("Error deleting custom attribute:", error);
-      showMessage("カスタム属性の削除に失敗しました。", "error");
     }
   };
 
@@ -605,23 +530,17 @@ function App() {
     if (!cardToUpdate) return;
 
     const currentAttributes = cardToUpdate.customAttributeIds || [];
-    let newAttributes;
-
-    if (currentAttributes.includes(attributeId)) {
-      newAttributes = currentAttributes.filter(id => id !== attributeId);
-    } else {
-      newAttributes = [...currentAttributes, attributeId];
-    }
+    const newAttributes = currentAttributes.includes(attributeId)
+      ? currentAttributes.filter(id => id !== attributeId)
+      : [...currentAttributes, attributeId];
 
     try {
       await updateDoc(doc(firestoreDb, `artifacts/${APP_ID}/users/${userId}/cards`, cardId), {
         customAttributeIds: newAttributes,
         updatedAt: new Date(),
       });
-      showMessage("カスタム属性を更新しました。", "success");
     } catch (error) {
       console.error("Error toggling custom attribute:", error);
-      showMessage("カスタム属性の更新に失敗しました。", "error");
     }
   };
 
@@ -630,12 +549,9 @@ function App() {
     if (!userId || !name.trim() || !firestoreDb) return;
     try {
       const newSetRef = await addDoc(collection(firestoreDb, `artifacts/${APP_ID}/users/${userId}/sets`), { name: name.trim(), createdAt: new Date() });
-      showMessage(`セット「${name}」を追加しました。`, "success");
-      // 新しく追加したセットを自動的に選択する
       setCurrentSetId(newSetRef.id);
     } catch (error) {
       console.error("Error adding set:", error);
-      showMessage("セットの追加に失敗しました。", "error");
     }
   };
 
@@ -647,13 +563,10 @@ function App() {
 
     setLoading(true);
     try {
-      // 該当セットに紐づくカードをすべて取得し、削除
-      // Firestoreのwhere句は等価比較のみサポートされるため、orderByは使わない
       const cardsInSetQuery = query(collection(firestoreDb, `artifacts/${APP_ID}/users/${userId}/cards`), where("setId", "==", setId));
       const querySnapshot = await getDocs(cardsInSetQuery);
       const deleteCardPromises = querySnapshot.docs.map(async (cardDoc) => {
         const cardData = cardDoc.data();
-        // 表面の画像削除
         if (cardData.imageUrl && firebaseStorage) {
           try {
             const url = new URL(cardData.imageUrl);
@@ -667,7 +580,6 @@ function App() {
             console.warn(`Warning: Could not delete front image for card ${cardDoc.id} from Storage:`, storageError);
           }
         }
-        // 裏面の画像削除 (もしあれば)
         if (cardData.backFaceImageUrl && firebaseStorage) {
           try {
             const url = new URL(cardData.backFaceImageUrl);
@@ -685,18 +597,14 @@ function App() {
       });
       await Promise.all(deleteCardPromises);
 
-      // セット自体を削除
       await deleteDoc(doc(firestoreDb, `artifacts/${APP_ID}/users/${userId}/sets`, setId));
-      showMessage("セットと関連カードを削除しました。", "success");
 
-      // 削除したセットが現在選択中のセットだった場合、選択を解除または最初のセットを選択
       if (currentSetId === setId) {
         setCurrentSetId(sets.length > 1 ? sets.find(s => s.id !== setId)?.id : null);
       }
 
     } catch (error) {
       console.error("Error deleting set:", error);
-      showMessage("セットの削除に失敗しました。", "error");
     } finally {
       setLoading(false);
     }
@@ -706,48 +614,32 @@ function App() {
   // フィルタリングされたカードの取得
   const getFilteredCards = useCallback(() => {
     return cards.filter(card => {
-      // 現在選択中のセットでフィルタリング
       if (currentSetId && card.setId !== currentSetId) return false;
 
-      // 色フィルター
       if (filters.colors.length > 0) {
-        const cardColors = Array.isArray(card.color) ? card.color : [card.color]; // カードの色を常に配列として扱う
+        const cardColors = Array.isArray(card.color) ? card.color : [card.color];
         const hasMulticolorFilter = filters.colors.includes('多色');
         const specificColorFilters = filters.colors.filter(c => c !== '多色');
-
         let colorMatch = false;
-
-        // 「多色」フィルターが選択されており、かつカードが実際に多色である場合
         if (hasMulticolorFilter && cardColors.length > 1) {
             colorMatch = true;
         }
-
-        // 特定の色フィルターが選択されており、かつカードのいずれかの色がフィルターと一致する場合
         if (specificColorFilters.length > 0) {
             if (cardColors.some(c => specificColorFilters.includes(c))) {
                 colorMatch = true;
             }
         }
-
-        // フィルターに何も選択されていない場合は、すべてのカードが色フィルターを通過
-        // ただし、filters.colors.length > 0 のブロック内なので、これは起こらない
-        // ここでcolorMatchがfalseなら、このカードは色フィルターに合致しない
         if (!colorMatch) return false;
       }
 
-      // レアリティフィルター
       if (filters.rarities.length > 0 && !filters.rarities.includes(card.rarity)) return false;
-      // カードタイプフィルター
       if (filters.types.length > 0 && !filters.types.includes(card.type)) return false;
-      // ボムレアフィルター
       if (filters.isBomb && !card.isBomb) return false;
-      // カスタム属性フィルター
       if (filters.customAttributeIds.length > 0) {
         if (!card.customAttributeIds || !filters.customAttributeIds.every(id => card.customAttributeIds.includes(id))) {
           return false;
         }
       }
-      // 検索語フィルター（カード名またはコメント）
       if (filters.searchTerm) {
         const lowerCaseSearchTerm = filters.searchTerm.toLowerCase();
         const cardNameMatch = card.name && card.name.toLowerCase().includes(lowerCaseSearchTerm);
@@ -756,33 +648,51 @@ function App() {
       }
       return true;
     });
-  }, [cards, filters, currentSetId]); // currentSetIdを依存配列に追加
+  }, [cards, filters, currentSetId]);
 
   // ソートされたカードの取得
   const getSortedCards = useCallback((filteredCards) => {
     const sorted = [...filteredCards].sort((a, b) => {
-      if (sortBy === 'rating-desc') {
-        return (b.rating || 0) - (a.rating || 0);
-      } else if (sortBy === 'rating-asc') {
-        return (a.rating || 0) - (b.rating || 0);
-      } else if (sortBy === 'manaCost-asc') {
-        // null (未設定) は最後に
-        if (a.manaCost === null && b.manaCost === null) return 0;
-        if (a.manaCost === null) return 1;
-        if (b.manaCost === null) return -1;
-        return (a.manaCost || 0) - (b.manaCost || 0);
-      } else if (sortBy === 'manaCost-desc') {
-        // null (未設定) は最後に
-        if (a.manaCost === null && b.manaCost === null) return 0;
-        if (a.manaCost === null) return 1;
-        if (b.manaCost === null) return -1;
-        return (b.manaCost || 0) - (a.manaCost || 0);
-      } else if (sortBy === 'name-asc') {
-        return (a.name || '').localeCompare(b.name || '');
-      } else if (sortBy === 'name-desc') {
-        return (b.name || '').localeCompare(a.name || '');
+      const manaA = a.manaCost !== undefined && a.manaCost !== null ? a.manaCost : Infinity;
+      const manaB = b.manaCost !== undefined && b.manaCost !== null ? b.manaCost : Infinity;
+      const ratingA = a.rating !== undefined && a.rating !== null ? a.rating : -1;
+      const ratingB = b.rating !== undefined && b.rating !== null ? b.rating : -1;
+      const colorsLengthA = (a.color || []).length;
+      const colorsLengthB = (b.color || []).length;
+      const nameA = a.name || '';
+      const nameB = b.name || '';
+
+      const defaultSort = () => {
+        if (manaA !== manaB) return manaA - manaB;
+        if (ratingB !== ratingA) return ratingB - ratingA;
+        return colorsLengthA - colorsLengthB;
+      };
+
+      switch (sortBy) {
+        case 'rating-desc':
+          if (ratingB !== ratingA) return ratingB - ratingA;
+          return defaultSort();
+        case 'rating-asc':
+          if (ratingA !== ratingB) return ratingA - ratingB;
+          return defaultSort();
+        case 'manaCost-asc':
+          if (manaA !== manaB) return manaA - manaB;
+          return defaultSort();
+        case 'manaCost-desc':
+          if (manaB !== manaA) return manaB - manaA;
+          return defaultSort();
+        case 'name-asc':
+          const nameCompareAsc = nameA.localeCompare(nameB);
+          if (nameCompareAsc !== 0) return nameCompareAsc;
+          return defaultSort();
+        case 'name-desc':
+          const nameCompareDesc = nameB.localeCompare(nameA);
+          if (nameCompareDesc !== 0) return nameCompareDesc;
+          return defaultSort();
+        case 'default':
+        default:
+          return defaultSort();
       }
-      return 0;
     });
     return sorted;
   }, [sortBy]);
@@ -799,11 +709,10 @@ function App() {
       if (tiers[tierKey]) {
         tiers[tierKey].push(card);
       } else {
-        tiers['0'].push(card); // 0未満の評価は0にまとめる
+        tiers['0'].push(card);
       }
     });
 
-    // 各Tier内で評価順にソート
     Object.keys(tiers).forEach(tierKey => {
       tiers[tierKey].sort((a, b) => (a.rating || 0) - (b.rating || 0));
     });
@@ -816,14 +725,13 @@ function App() {
   // カードアップロードモーダル
   const CardUploadModal = ({ isOpen, onClose, onUpload, sets, currentSetId }) => {
     const [selectedFiles, setSelectedFiles] = useState([]);
-    const [selectedColors, setSelectedColors] = useState([]); // 複数色選択用
-    const [uploadSetId, setUploadSetId] = useState(currentSetId || ''); // モーダル内のセット選択状態
-    const [isDoubleFaced, setIsDoubleFaced] = useState(false); // DFC用
-    const [backFaceFile, setBackFaceFile] = useState(null); // DFC用
+    const [selectedColors, setSelectedColors] = useState([]);
+    const [uploadSetId, setUploadSetId] = useState(currentSetId || '');
+    const [isDoubleFaced, setIsDoubleFaced] = useState(false);
+    const [backFaceFile, setBackFaceFile] = useState(null);
     const fileInputRef = useRef(null);
-    const backFaceFileInputRef = useRef(null); // DFC用
+    const backFaceFileInputRef = useRef(null);
 
-    // 現在のセットIDが変更されたら、モーダル内の選択も更新
     useEffect(() => {
       if (currentSetId && currentSetId !== uploadSetId) {
         setUploadSetId(currentSetId);
@@ -846,33 +754,33 @@ function App() {
 
     const handleSubmit = () => {
       if (selectedFiles.length === 0) {
-        showMessage("ファイルを1つ以上選択してください。", "error");
+        console.error("ファイルを1つ以上選択してください。");
         return;
       }
       if (!uploadSetId) {
-        showMessage("カードをアップロードするセットを選択してください。", "error");
+        console.error("カードをアップロードするセットを選択してください。");
         return;
       }
       if (selectedColors.length === 0) {
-        showMessage("カードの色を1つ以上選択してください。", "error");
+        console.error("カードの色を1つ以上選択してください。");
         return;
       }
       if (isDoubleFaced && selectedFiles.length !== 1) {
-        showMessage("裏表のあるカードをアップロードする場合、表面の画像は1枚のみ選択してください。", "error");
+        console.error("裏表のあるカードをアップロードする場合、表面の画像は1枚のみ選択してください。");
         return;
       }
       if (isDoubleFaced && !backFaceFile) {
-        showMessage("裏表のあるカードの場合、裏面画像も選択してください。", "error");
+        console.error("裏表のあるカードの場合、裏面画像も選択してください。");
         return;
       }
 
       onUpload(selectedFiles, selectedColors, uploadSetId, isDoubleFaced, backFaceFile);
       setSelectedFiles([]);
-      setSelectedColors([]); // 色選択をリセット
-      setIsDoubleFaced(false); // DFC状態をリセット
-      setBackFaceFile(null); // 裏面ファイルをリセット
-      if (fileInputRef.current) fileInputRef.current.value = ''; // ファイル入力クリア
-      if (backFaceFileInputRef.current) backFaceFileInputRef.current.value = ''; // 裏面ファイル入力クリア
+      setSelectedColors([]);
+      setIsDoubleFaced(false);
+      setBackFaceFile(null);
+      if (fileInputRef.current) fileInputRef.current.value = '';
+      if (backFaceFileInputRef.current) backFaceFileInputRef.current.value = '';
     };
 
     return (
@@ -940,7 +848,6 @@ function App() {
             </div>
           )}
         </div>
-        {/* DFCチェックボックス */}
         <div className="mb-4">
           <label className="flex items-center space-x-2 cursor-pointer">
             <input
@@ -990,7 +897,7 @@ function App() {
   // カード編集モーダル
   const CardEditModal = ({ isOpen, onClose, card, onSave, onDelete, sets }) => {
     const [editedCard, setEditedCard] = useState(card);
-    const backFaceFileInputRef = useRef(null); // 裏面画像アップロード用
+    const backFaceFileInputRef = useRef(null);
 
     useEffect(() => {
       setEditedCard(card);
@@ -1000,7 +907,7 @@ function App() {
 
     const handleChange = (e) => {
       const { name, value, type, checked } = e.target;
-      if (name === 'color') { // 色の変更は配列として扱う
+      if (name === 'color') {
         const currentColor = Array.isArray(editedCard.color) ? editedCard.color : [];
         const newColors = checked
           ? [...currentColor, value]
@@ -1016,12 +923,7 @@ function App() {
 
     const handleBackFaceFileChange = async (e) => {
       const file = e.target.files[0];
-      if (!file) return;
-
-      if (!firebaseStorage || !userId) {
-        showMessage("Firebase Storageが利用できません。", "error");
-        return;
-      }
+      if (!file || !firebaseStorage || !userId) return;
 
       setLoading(true);
       try {
@@ -1029,10 +931,8 @@ function App() {
         await uploadBytes(storageRef, file);
         const newBackFaceImageUrl = await getDownloadURL(storageRef);
         setEditedCard(prev => ({ ...prev, backFaceImageUrl: newBackFaceImageUrl }));
-        showMessage("裏面画像をアップロードしました。", "success");
       } catch (error) {
         console.error("Error uploading back face image:", error);
-        showMessage("裏面画像のアップロードに失敗しました。", "error");
       } finally {
         setLoading(false);
       }
@@ -1044,7 +944,7 @@ function App() {
     };
 
     const handleDelete = () => {
-      onDelete(editedCard.id, editedCard.imageUrl, editedCard.backFaceImageUrl); // 裏面画像URLも渡す
+      onDelete(editedCard.id, editedCard.imageUrl, editedCard.backFaceImageUrl);
       onClose();
     };
 
@@ -1053,8 +953,6 @@ function App() {
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
           <div className="md:col-span-2 flex justify-center mb-4">
             {editedCard.imageUrl ? (
-              // カード画像を元画像の約1.5倍のサイズで表示 (265*1.5=397.5, 370*1.5=555)
-              // さらに1.5倍なので、530*1.5=795, 740*1.5=1110
               <img src={editedCard.imageUrl} alt={editedCard.name} className="h-auto rounded-md shadow-md" style={{ width: 'auto', height: 'auto', maxWidth: '795px', maxHeight: '1110px' }} />
             ) : (
               <div className="w-48 h-64 bg-gray-200 flex items-center justify-center rounded-md text-gray-400">
@@ -1075,12 +973,12 @@ function App() {
           </div>
           <div>
             <label className="block text-gray-700 text-sm font-bold mb-2">色:</label>
-            <div className="flex flex-wrap gap-2"> {/* 色選択をチェックボックスに変更 */}
+            <div className="flex flex-wrap gap-2">
               {PRIMARY_COLORS.map(color => (
                 <label key={color} className="flex items-center space-x-2 cursor-pointer">
                   <input
                     type="checkbox"
-                    name="color" // name属性を追加
+                    name="color"
                     value={color}
                     checked={Array.isArray(editedCard.color) && editedCard.color.includes(color)}
                     onChange={handleChange}
@@ -1126,7 +1024,6 @@ function App() {
               className="shadow border rounded w-full py-2 px-3 text-gray-700 leading-tight focus:outline-none focus:shadow-outline"
             />
           </div>
-          {/* マナコスト入力欄 */}
           <div>
             <label className="block text-gray-700 text-sm font-bold mb-2">マナコスト:</label>
             <input
@@ -1138,7 +1035,6 @@ function App() {
               className="shadow border rounded w-full py-2 px-3 text-gray-700 leading-tight focus:outline-none focus:shadow-outline"
             />
           </div>
-          {/* セット選択を追加 */}
           <div>
             <label className="block text-gray-700 text-sm font-bold mb-2">セット:</label>
             <select
@@ -1148,7 +1044,7 @@ function App() {
               className="shadow border rounded w-full py-2 px-3 text-gray-700 leading-tight focus:outline-none focus:shadow-outline"
             >
               <option value="">セットを選択</option>
-              {sets.map(set => ( // sets propを使用
+              {sets.map(set => (
                 <option key={set.id} value={set.id}>{set.name}</option>
               ))}
             </select>
@@ -1163,7 +1059,6 @@ function App() {
               className="shadow border rounded w-full py-2 px-3 text-gray-700 leading-tight focus:outline-none focus:shadow-outline"
             ></textarea>
           </div>
-          {/* DFC編集オプション */}
           <div className="md:col-span-2">
             <label className="flex items-center space-x-2 cursor-pointer mb-2">
               <input
@@ -1240,7 +1135,7 @@ function App() {
         onAdd(newAttributeName);
         setNewAttributeName('');
       } else {
-        showMessage("属性名を入力してください。", "error");
+        console.error("属性名を入力してください。");
       }
     };
 
@@ -1305,7 +1200,7 @@ function App() {
         onAddSet(newSetName.trim());
         setNewSetName('');
       } else {
-        showMessage("セット名を入力してください。", "error");
+        console.error("セット名を入力してください。");
       }
     };
 
@@ -1360,14 +1255,12 @@ function App() {
 
   // レアリティ一括割り当てモーダル
   const RarityAssignmentModal = ({ isOpen, onClose, cards, onUpdateCards }) => {
-    // レアリティが設定されていないカードのみをフィルタリング
     const unassignedCards = cards.filter(card => !card.rarity || card.rarity === '');
-
     const [selectedCards, setSelectedCards] = useState([]);
     const [selectedRarity, setSelectedRarity] = useState('');
 
     useEffect(() => {
-      setSelectedCards([]); // モーダルが開くたびに選択をリセット
+      setSelectedCards([]);
       setSelectedRarity('');
     }, [isOpen]);
 
@@ -1378,7 +1271,7 @@ function App() {
     };
 
     const handleSelectAll = () => {
-      if (selectedCards.length === unassignedCards.length) { // フィルタリングされたリストに対して全選択/全解除
+      if (selectedCards.length === unassignedCards.length) {
         setSelectedCards([]);
       } else {
         setSelectedCards(unassignedCards.map(card => card.id));
@@ -1387,7 +1280,7 @@ function App() {
 
     const handleApplyRarity = async () => {
       if (selectedCards.length === 0 || !selectedRarity) {
-        showMessage("カードとレアリティを選択してください。", "error");
+        console.error("カードとレアリティを選択してください。");
         return;
       }
 
@@ -1398,11 +1291,9 @@ function App() {
 
       try {
         await Promise.all(updates);
-        showMessage(`${selectedCards.length}枚のカードのレアリティを更新しました。`, "success");
         onClose();
       } catch (error) {
         console.error("Error updating rarities:", error);
-        showMessage("レアリティの一括更新に失敗しました。", "error");
       } finally {
         setLoading(false);
       }
@@ -1440,7 +1331,7 @@ function App() {
               このセットには、まだレアリティが未設定のカードはありません。
             </p>
           ) : (
-            unassignedCards.map(card => ( // フィルタリングされたカードリストを使用
+            unassignedCards.map(card => (
               <div
                 key={card.id}
                 className={`relative cursor-pointer border-2 rounded-md overflow-hidden transition-all duration-150
@@ -1475,16 +1366,14 @@ function App() {
     );
   };
 
-  // カードタイプ一括割り当てモーダル (新規追加)
+  // カードタイプ一括割り当てモーダル
   const TypeAssignmentModal = ({ isOpen, onClose, cards, onUpdateCards }) => {
-    // タイプが設定されていないカードのみをフィルタリング
     const unassignedCards = cards.filter(card => !card.type || card.type === '');
-
     const [selectedCards, setSelectedCards] = useState([]);
     const [selectedType, setSelectedType] = useState('');
 
     useEffect(() => {
-      setSelectedCards([]); // モーダルが開くたびに選択をリセット
+      setSelectedCards([]);
       setSelectedType('');
     }, [isOpen]);
 
@@ -1504,7 +1393,7 @@ function App() {
 
     const handleApplyType = async () => {
       if (selectedCards.length === 0 || !selectedType) {
-        showMessage("カードとタイプを選択してください。", "error");
+        console.error("カードとタイプを選択してください。");
         return;
       }
 
@@ -1515,11 +1404,9 @@ function App() {
 
       try {
         await Promise.all(updates);
-        showMessage(`${selectedCards.length}枚のカードのタイプを更新しました。`, "success");
         onClose();
       } catch (error) {
         console.error("Error updating types:", error);
-        showMessage("タイプの一括更新に失敗しました。", "error");
       } finally {
         setLoading(false);
       }
@@ -1622,7 +1509,6 @@ function App() {
       <header className="bg-white rounded-lg shadow-md p-4 mb-6 flex flex-col sm:flex-row justify-between items-center gap-4">
         <h1 className="text-3xl font-bold text-blue-700">MTGリミテッド評価ツール</h1>
         <div className="flex flex-wrap gap-2 sm:gap-4 justify-center">
-          {/* 現在のセット選択ドロップダウン */}
           <div className="flex items-center gap-2">
             <label htmlFor="set-selector" className="text-gray-700 font-semibold flex items-center gap-1">
               <BookOpenText size={20} /> 現在のセット:
@@ -1674,7 +1560,6 @@ function App() {
               </button>
             </>
           )}
-          {/* 非表示モード切り替えボタン */}
           <button
             onClick={() => setIsStealthMode(prev => !prev)}
             className={`py-2 px-4 rounded-md shadow-md transition-colors duration-200 flex items-center gap-2
@@ -1686,7 +1571,6 @@ function App() {
         </div>
       </header>
 
-      {/* フィルターとソート、表示モード */}
       <section className="bg-white rounded-lg shadow-md p-4 mb-6">
         <div className="flex flex-wrap items-center gap-4 mb-4">
           <h2 className="text-xl font-bold text-gray-800 flex items-center gap-2"><Filter size={20} /> フィルター</h2>
@@ -1703,11 +1587,10 @@ function App() {
         </div>
 
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-4">
-          {/* 色フィルター */}
           <div>
             <label className="block text-gray-700 font-semibold mb-2 flex items-center gap-1"><Palette size={16} /> 色:</label>
             <div className="flex flex-wrap gap-2">
-              {FILTER_COLORS.map(color => ( // FILTER_COLORSを使用
+              {FILTER_COLORS.map(color => (
                 <label key={color} className="flex items-center space-x-2 cursor-pointer">
                   <input
                     type="checkbox"
@@ -1728,7 +1611,6 @@ function App() {
             </div>
           </div>
 
-          {/* レアリティフィルター */}
           <div>
             <label className="block text-gray-700 font-semibold mb-2 flex items-center gap-1"><Star size={16} /> レアリティ:</label>
             <div className="flex flex-wrap gap-2">
@@ -1753,7 +1635,6 @@ function App() {
             </div>
           </div>
 
-          {/* カードタイプフィルター */}
           <div>
             <label className="block text-gray-700 font-semibold mb-2 flex items-center gap-1"><Type size={16} /> カードタイプ:</label>
             <div className="flex flex-wrap gap-2">
@@ -1778,7 +1659,6 @@ function App() {
             </div>
           </div>
 
-          {/* カスタム属性フィルター */}
           <div>
             <label className="block text-gray-700 font-semibold mb-2 flex items-center gap-1"><Plus size={16} /> カスタム属性:</label>
             <div className="flex flex-wrap gap-2">
@@ -1805,7 +1685,6 @@ function App() {
         </div>
 
         <div className="flex flex-wrap items-center gap-4 mt-4 pt-4 border-t border-gray-200">
-          {/* ボムレアフィルター */}
           <label className="flex items-center space-x-2 cursor-pointer bg-yellow-100 p-2 rounded-md shadow-sm">
             <input
               type="checkbox"
@@ -1817,7 +1696,6 @@ function App() {
             <span className="text-gray-800 font-semibold">ボムレアのみ表示</span>
           </label>
 
-          {/* ソートオプション */}
           <div className="flex items-center gap-2 ml-auto">
             <label htmlFor="sort-by" className="text-gray-700 font-semibold">並べ替え:</label>
             <select
@@ -1826,6 +1704,7 @@ function App() {
               onChange={(e) => setSortBy(e.target.value)}
               className="p-2 border border-gray-300 rounded-md focus:ring-blue-500 focus:border-blue-500"
             >
+              <option value="default">デフォルト (コスト順 > 評価順 > 色順)</option>
               <option value="rating-desc">評価 (高い順)</option>
               <option value="rating-asc">評価 (低い順)</option>
               <option value="manaCost-asc">コスト (低い順)</option>
@@ -1835,7 +1714,6 @@ function App() {
             </select>
           </div>
 
-          {/* 表示モード切り替え */}
           <div className="flex items-center gap-2">
             <button
               onClick={() => setDisplayMode('grid')}
@@ -1855,7 +1733,6 @@ function App() {
         </div>
       </section>
 
-      {/* カード表示エリア */}
       <main>
         {filteredAndSortedCards.length === 0 ? (
           <div className="bg-white rounded-lg shadow-md p-8 text-center text-gray-600">
@@ -1970,15 +1847,6 @@ function App() {
         onAddSet={handleAddSet}
         onDeleteSet={handleDeleteSet}
       />
-
-      {/* メッセージボックス */}
-      {message && (
-        <MessageBox
-          message={message}
-          type={messageType}
-          onClose={() => setMessage(null)}
-        />
-      )}
     </div>
   );
 }
